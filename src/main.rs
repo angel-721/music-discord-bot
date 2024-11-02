@@ -15,6 +15,7 @@ use warped_tour_discord_bot::types::httpkey::HttpKey;
 async fn main() {
     dotenv::dotenv().ok();
     let token = env::var("DISCORD_TOKEN").expect("Fatality! DISCORD_TOKEN not set!");
+
     tracing_subscriber::fmt::init();
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::MESSAGE_CONTENT

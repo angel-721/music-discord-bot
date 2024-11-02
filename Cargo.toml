@@ -1,0 +1,22 @@
+[package]
+name = "warped-tour-discord-bot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serenity = {version= "0.12.2", features = ["gateway", "model", "collector",
+	"client", "standard_framework", "voice", "cache", "rustls_backend"]}
+tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread", "signal",
+"sync"] }
+futures = "0.3.31"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tracing-futures = "0.2"
+serde_json = "1.0.132"
+poise = "0.6.1"
+songbird = {version="0.4.3", default-features = true}
+reqwest = "0.11"
+youtube_dl = "0.10.0"
+time = "0.3.36"
+symphonia = { features = ["aac", "mp3", "isomp4", "alac"], version = "0.5.2" }
+dotenv = "0.15.0"

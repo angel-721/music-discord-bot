@@ -3,6 +3,8 @@ use serenity::model::channel::Message;
 use serenity::Result as SerenityResult;
 use songbird::input::YoutubeDl;
 
+use serenity::all::{CreateEmbed, CreateMessage};
+
 use rspotify::{
     model::{FullTrack, Market, TrackId},
     prelude::*,
@@ -10,6 +12,23 @@ use rspotify::{
 };
 
 use std::env;
+
+pub async fn playing_song_message(
+    artist_name: String,
+    song_name: String,
+    cover_uri: String,
+    song_uri: String,
+) -> CreateMessage {
+    let embed = CreateEmbed::new()
+        .title("🔊 Now playing:")
+        .description(format!(
+            "### [{} - {}]({})",
+            artist_name, song_name, song_uri
+        ))
+        .thumbnail(cover_uri);
+    let new_m = CreateMessage::new().add_embed(embed);
+    new_m
+}
 
 async fn get_track_info(track_url: &str) -> FullTrack {
     let spotify_client_id =
@@ -27,11 +46,9 @@ async fn get_track_info(track_url: &str) -> FullTrack {
 
     // Create the proper Spotify URI
     let spotify_uri = format!("spotify:track:{}", track_id);
-    println!("spotify_uri: {}", spotify_uri);
 
     // Now convert to TrackId
     let track_id = TrackId::from_uri(&spotify_uri).unwrap();
-    println!("track_id: {}", track_id);
 
     spotify.request_token().await.unwrap();
 
@@ -55,16 +72,12 @@ fn check_msg(result: SerenityResult<Message>) {
 }
 
 #[poise::command(slash_command, prefix_command)]
-pub async fn play(
-    ctx: context::Context<'_>,
-    #[description = "Message to react to (enter a link or ID)"] msg: Message,
-) -> Result<(), error::Error> {
+pub async fn play(ctx: context::Context<'_>) -> Result<(), error::Error> {
     let url = String::from("https://open.spotify.com/track/1IT0WQk5J8NsaeII8ktdlZ");
 
     let guild_id = ctx.guild_id().unwrap();
 
     let track = get_track_info(&url).await;
-    println!("{:?}", track);
 
     let http_client = {
         let data = ctx.serenity_context().data.read().await;
@@ -87,14 +100,24 @@ pub async fn play(
         let mut handler = handler_lock.lock().await;
 
         let mut src = YoutubeDl::new(http_client, search_query);
-        let res = src.search(Some(1)).await.unwrap();
-        println!("{:?}", res);
+        let _ = src.search(Some(1)).await.unwrap();
         handler.play(src.into());
 
-        check_msg(msg.channel_id.say(ctx.http(), "Playing song").await);
+        let msg_embed = playing_song_message(
+            track.artists[0].name.clone(),
+            track.name,
+            track.album.images[0].clone().url,
+            track.external_urls["spotify"].clone(),
+        )
+        .await;
+
+        ctx.channel_id()
+            .send_message(ctx.http(), msg_embed)
+            .await
+            .unwrap();
     } else {
         check_msg(
-            msg.channel_id
+            ctx.channel_id()
                 .say(ctx.http(), "Not in a voice channel to play in")
                 .await,
         );

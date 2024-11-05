@@ -2,6 +2,7 @@ use crate::types::{context, error};
 
 #[poise::command(slash_command, prefix_command)]
 pub async fn join(ctx: context::Context<'_>) -> Result<(), error::Error> {
+    ctx.defer().await.unwrap();
     let (guild_id, channel_id) = {
         let guild = ctx.guild().unwrap();
         let channel_id = guild
@@ -28,8 +29,15 @@ pub async fn join(ctx: context::Context<'_>) -> Result<(), error::Error> {
 
     if let Ok(_handler_lock) = manager.join(guild_id, connect_to).await {
         // Attach an event handler to see notifications of all track errors.
-        println!("Success!");
+        // println!("Success!");
     }
+
+    ctx.reply(format!(
+        "Joined channel: {}",
+        channel_id.unwrap().name(&ctx).await.unwrap()
+    ))
+    .await
+    .unwrap();
 
     Ok(())
 }

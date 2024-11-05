@@ -1,9 +1,15 @@
-use crate::types::{context, error, httpkey};
-use serenity::model::channel::Message;
-use serenity::Result as SerenityResult;
-use songbird::input::YoutubeDl;
+use crate::types::{context, data::Song, error, httpkey};
+use songbird::{
+    input::YoutubeDl, Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent,
+};
+use std::sync::Arc;
 
-use serenity::all::{CreateEmbed, CreateMessage};
+use serenity::all::{
+    async_trait,
+    http::Http,
+    model::{channel::Message, prelude::ChannelId},
+    CreateEmbed, CreateMessage, Result as SerenityResult,
+};
 
 use rspotify::{
     model::{FullTrack, Market, TrackId},
@@ -86,31 +92,55 @@ pub async fn play(ctx: context::Context<'_>) -> Result<(), error::Error> {
             .expect("Guaranteed to exist in the typemap.")
     };
 
-    let search_query = format!(
-        "ytsearch1:{} by {} {}",
-        track.name, track.artists[0].name, "audio"
-    );
-
     let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
+    // TODO: Set up queue to add the song to and play the the song off the queue
+    let new_song = Song::new(
+        track.name.clone(),
+        track.artists[0].name.clone(),
+        track.external_urls["spotify"].clone(),
+        track.album.images[0].url.clone(),
+    );
+
+    // let mut queue = ctx.data().song_queue.lock().unwrap();
+
+    ctx.data().song_queue.lock().unwrap().push_back(new_song);
+
+    let song_to_play = ctx.data().song_queue.lock().unwrap().pop_front().unwrap();
+
     if let Some(handler_lock) = manager.get(guild_id) {
+        ctx.defer().await.unwrap();
         let mut handler = handler_lock.lock().await;
+
+        let search_query = format!(
+            "ytsearch1:{} by {} {}",
+            song_to_play.song_name, song_to_play.artist_name, "audio"
+        );
 
         let mut src = YoutubeDl::new(http_client, search_query);
         let _ = src.search(Some(1)).await.unwrap();
-        handler.play(src.into());
+        let song = handler.play(src.into());
+
+        let _ = song.add_event(
+            Event::Track(TrackEvent::End),
+            SongEndNotifier {
+                chan_id: ctx.channel_id(),
+                http: ctx.serenity_context().http.clone(),
+            },
+        );
 
         let msg_embed = playing_song_message(
-            track.artists[0].name.clone(),
-            track.name,
-            track.album.images[0].clone().url,
-            track.external_urls["spotify"].clone(),
+            song_to_play.artist_name,
+            song_to_play.song_name,
+            song_to_play.album_cover_url,
+            song_to_play.song_url,
         )
         .await;
 
+        ctx.reply("hi").await.unwrap();
         ctx.channel_id()
             .send_message(ctx.http(), msg_embed)
             .await
@@ -124,4 +154,22 @@ pub async fn play(ctx: context::Context<'_>) -> Result<(), error::Error> {
     }
 
     Ok(())
+}
+
+struct SongEndNotifier {
+    chan_id: ChannelId,
+    http: Arc<Http>,
+}
+
+#[async_trait]
+impl VoiceEventHandler for SongEndNotifier {
+    async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
+        check_msg(
+            self.chan_id
+                .say(&self.http, "Song faded out completely!")
+                .await,
+        );
+
+        None
+    }
 }

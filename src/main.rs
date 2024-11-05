@@ -1,15 +1,14 @@
-use poise::serenity_prelude as serenity_p;
+use poise::serenity_prelude as serenity;
 use reqwest::Client as HttpClient;
 use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
-use std::env;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
-use warped_tour_discord_bot::commands::join::join;
-use warped_tour_discord_bot::commands::play::play;
-use warped_tour_discord_bot::types::data::Data;
-use warped_tour_discord_bot::types::error::Error;
-use warped_tour_discord_bot::types::httpkey::HttpKey;
+use std::env;
+
+use warped_tour_discord_bot::commands::{join::join, play::play};
+use warped_tour_discord_bot::types::{data::*, error::Error, httpkey::HttpKey};
 
 #[tokio::main]
 async fn main() {
@@ -17,10 +16,8 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Fatality! DISCORD_TOKEN not set!");
 
     tracing_subscriber::fmt::init();
-    let intents = GatewayIntents::non_privileged()
-        | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_VOICE_STATES
-        | GatewayIntents::all();
+
+    let intents = GatewayIntents::non_privileged() | GatewayIntents::GUILD_VOICE_STATES;
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -35,13 +32,13 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 Ok(Data {
-                    poise_mentions: AtomicU32::new(0),
+                    song_queue: Arc::new(Mutex::new(VecDeque::new())),
                 })
             })
         })
         .build();
 
-    let client = serenity_p::ClientBuilder::new(token, intents)
+    let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .register_songbird()
         .type_map_insert::<HttpKey>(HttpClient::new())
@@ -51,27 +48,14 @@ async fn main() {
 }
 
 async fn event_handler(
-    ctx: &serenity_p::Context,
-    event: &serenity_p::FullEvent,
+    _ctx: &serenity::Context,
+    event: &serenity::FullEvent,
     _framework: poise::FrameworkContext<'_, Data, Error>,
-    data: &Data,
+    _data: &Data,
 ) -> Result<(), Error> {
     match event {
-        serenity_p::FullEvent::Ready { data_about_bot, .. } => {
+        serenity::FullEvent::Ready { data_about_bot, .. } => {
             println!("Logged in as {}", data_about_bot.user.name);
-        }
-        serenity_p::FullEvent::Message { new_message } => {
-            if new_message.content.to_lowercase().contains("poise")
-                && new_message.author.id != ctx.cache.current_user().id
-            {
-                let old_mentions = data.poise_mentions.fetch_add(1, Ordering::SeqCst);
-                new_message
-                    .reply(
-                        ctx,
-                        format!("Poise has been mentioned {} times", old_mentions + 1),
-                    )
-                    .await?;
-            }
         }
         _ => {}
     }

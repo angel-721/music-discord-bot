@@ -2,5 +2,6 @@
 
 pub use serenity::prelude::*;
 pub mod commands;
+pub mod messages;
+pub mod spotify;
 pub mod types;
-// pub use crate::types;

@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 pub type SharedQueue<T> = Arc<Mutex<VecDeque<T>>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Song {
     pub song_name: String,
     pub artist_name: String,

@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use std::env;
 
-use warped_tour_discord_bot::commands::{join::join, play::play};
+use warped_tour_discord_bot::commands::{join::join, play::play_playlist};
 use warped_tour_discord_bot::types::{data::*, error::Error, httpkey::HttpKey};
 
 #[tokio::main]
@@ -21,7 +21,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![join(), play()],
+            commands: vec![join(), play_playlist()],
             event_handler: |ctx, event, framework, data| {
                 Box::pin(event_handler(ctx, event, framework, data))
             },

@@ -1,5 +1,5 @@
 [package]
-name = "warped-tour-discord-bot"
+name = "music-discord-bot"
 version = "0.1.0"
 edition = "2021"
 

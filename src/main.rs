@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use std::env;
 
-use warped_tour_discord_bot::commands::{join::join, play::play_playlist};
-use warped_tour_discord_bot::types::{data::*, error::Error, httpkey::HttpKey};
+use music_tour_discord_bot::commands::{join::join, play::play_playlist};
+use music_tour_discord_bot::types::{data::*, error::Error, httpkey::HttpKey};
 
 #[tokio::main]
 async fn main() {
